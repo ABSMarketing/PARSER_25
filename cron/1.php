@@ -55,14 +55,17 @@ foreach ($SheetNames as $index => $SheetName) {
             'data' => json_decode($result['json_data'], true)
         ];
         
-        // 1. Получить все ссылки
+        // 1. Собрать все ссылки из строки 2, очистить от лишних символов в конце
         $serverData = getRowData($result['json_data'], 2);
-        echo "\n📊 Ссылки:\n";
+        $urls = [];
         foreach ($serverData as $cell) {
-            if (empty(trim($cell['column_name'])) || !preg_match('/https?:\/\//', $cell['column_name'])) {
+            $val = trim($cell['column_name']);
+            if (empty($val) || !preg_match('/https?:\/\//', $val)) {
                 continue;
             }
-            echo "   {$SheetName}/{$cell['column']}/{$cell['row']}: {$cell['column_name']}\n";
+            // Убираем лишние символы в конце (цифры, пробелы и т.п. после домена/пути)
+            $cleanUrl = preg_replace('/[\s\d]+$/', '', $val);
+            $urls[] = $cleanUrl;
         }
         
         // Определяем конфигурацию для каждой вкладки
@@ -129,19 +132,15 @@ foreach ($SheetNames as $index => $SheetName) {
             }
         }
         
-        // Выводим только строки с названиями
-        echo "\n📋 Только строки с названиями (Вкладка/Колонка/Строка/Название/Рейд/Блоки Питания):\n";
-        
-        if (empty($combinedData)) {
-            echo "   Нет данных для отображения\n";
-        } else {
+        // Выводим в новом формате: для каждого сайта — все товары
+        echo "\n";
+        foreach ($urls as $url) {
             foreach ($combinedData as $row => $data) {
                 if (!empty($data['name'])) {
-                    $output = "   {$SheetName}/{$cfg['nameCol']}/{$row}";
-                    $output .= "/" . ($data['name'] ?? '—');
-                    $output .= "/" . ($data['raid'] ?? '—');
-                    $output .= "/" . ($data['power'] ?? '—');
-                    echo $output . "\n";
+                    $name  = $data['name'];
+                    $raid  = $data['raid']  ?? '—';
+                    $power = $data['power'] ?? '—';
+                    echo "{$url}|{$SheetName}|{$cfg['nameCol']}|{$row}|{$name}|{$raid}|{$power}\n";
                 }
             }
         }
