@@ -20,8 +20,6 @@ $Users_ID = 1; // users_id
 
 // === НАЗВАНИЯ ВКЛАДОК (МАССИВ) ===
 $SheetNames = ['Платформы', 'Процессоры', 'Оперативная память'];
-$SheetNames = ['Платформы', 'Процессоры', 'Оперативная память'];
-$SheetNames = ['Оперативная память'];
 
 $COLUMN_INDEX = null;
 $START_ROW = null;
@@ -44,7 +42,7 @@ foreach ($SheetNames as $index => $SheetName) {
     
     $result = getColumnDataWithCoordinates(
         $Api_Key, $Users_ID, $Provider,
-        $COLUMN_INDEX, $START_ROW, $SheetName
+        $SheetName, $COLUMN_INDEX, $START_ROW
     );
     
     if ($result['success']) {
@@ -67,18 +65,20 @@ foreach ($SheetNames as $index => $SheetName) {
             echo "   {$SheetName}/{$cell['column']}/{$cell['row']}: {$cell['column_name']}\n";
         }
         
-        // Определяем стартовую строку для каждой вкладки
-        // Для Платформы данные начинаются с 5 строки (row=4 в индексации PHP)
-        // Для Процессоров и Оперативной памяти данные начинаются с 4 строки (row=3 в индексации PHP)
-        $startRowForData = 3; // По умолчанию с 4 строки (row=3)
-        if ($SheetName == 'Платформы') {
-            $startRowForData = 4; // Для Платформы с 5 строки (row=4)
-        }
+        // Определяем конфигурацию для каждой вкладки
+        $defaultSheetConfig = ['startRow' => 3, 'nameCol' => 2, 'raidCol' => null, 'powerCol' => null];
+        $sheetConfig = [
+            'Платформы'          => ['startRow' => 4, 'nameCol' => 2, 'raidCol' => 3, 'powerCol' => 4],
+            'Процессоры'         => $defaultSheetConfig,
+            'Оперативная память' => $defaultSheetConfig,
+        ];
+        $cfg = $sheetConfig[$SheetName] ?? $defaultSheetConfig;
+        $startRowForData = $cfg['startRow'];
         
         // Получаем данные для всех колонок с правильной стартовой строкой
-        $namesData = getValuesByRowRange($result['json_data'], $startRowForData, 1000, 2);
-        $raidData = getValuesByRowRange($result['json_data'], $startRowForData, 1000, 3);
-        $powerData = getValuesByRowRange($result['json_data'], $startRowForData, 1000, 4);
+        $namesData = getValuesByRowRange($result['json_data'], $startRowForData, 1000, $cfg['nameCol']);
+        $raidData  = $cfg['raidCol']  !== null ? getValuesByRowRange($result['json_data'], $startRowForData, 1000, $cfg['raidCol'])  : [];
+        $powerData = $cfg['powerCol'] !== null ? getValuesByRowRange($result['json_data'], $startRowForData, 1000, $cfg['powerCol']) : [];
         
         // ОЧИЩАЕМ МАССИВЫ ПЕРЕД КАЖДОЙ ВКЛАДКОЙ
         $combinedData = [];
