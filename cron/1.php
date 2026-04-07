@@ -20,8 +20,18 @@ $Users_ID = 1; // users_id
 
 // === НАЗВАНИЯ ВКЛАДОК (МАССИВ) ===
 $SheetNames = ['Платформы', 'Процессоры', 'Оперативная память'];
-$SheetNames = ['Платформы', 'Процессоры', 'Оперативная память'];
-$SheetNames = ['Оперативная память'];
+
+// === КОНФИГУРАЦИЯ КОЛОНОК ДЛЯ КАЖДОЙ ВКЛАДКИ ===
+// startRow — номер строки Google Sheets, с которой начинаются данные (совпадает с нумерацией в таблице;
+//             используется как нижняя граница при фильтрации в getValuesByRowRange)
+// nameCol  — номер колонки с названием (обязательно)
+// raidCol  — номер колонки с RAID-контроллером (null если отсутствует для данной вкладки)
+// powerCol — номер колонки с блоками питания (null если отсутствует для данной вкладки)
+$sheetConfig = [
+    'Платформы'         => ['startRow' => 4, 'nameCol' => 2, 'raidCol' => 3, 'powerCol' => 4],
+    'Процессоры'        => ['startRow' => 3, 'nameCol' => 2, 'raidCol' => null, 'powerCol' => null],
+    'Оперативная память' => ['startRow' => 3, 'nameCol' => 2, 'raidCol' => null, 'powerCol' => null],
+];
 
 $COLUMN_INDEX = null;
 $START_ROW = null;
@@ -44,7 +54,7 @@ foreach ($SheetNames as $index => $SheetName) {
     
     $result = getColumnDataWithCoordinates(
         $Api_Key, $Users_ID, $Provider,
-        $COLUMN_INDEX, $START_ROW, $SheetName
+        $SheetName, $COLUMN_INDEX, $START_ROW
     );
     
     if ($result['success']) {
@@ -67,18 +77,23 @@ foreach ($SheetNames as $index => $SheetName) {
             echo "   {$SheetName}/{$cell['column']}/{$cell['row']}: {$cell['column_name']}\n";
         }
         
-        // Определяем стартовую строку для каждой вкладки
-        // Для Платформы данные начинаются с 5 строки (row=4 в индексации PHP)
-        // Для Процессоров и Оперативной памяти данные начинаются с 4 строки (row=3 в индексации PHP)
-        $startRowForData = 3; // По умолчанию с 4 строки (row=3)
-        if ($SheetName == 'Платформы') {
-            $startRowForData = 4; // Для Платформы с 5 строки (row=4)
-        }
+        // Определяем настройки колонок для данной вкладки из конфига
+        // Используем дефолтные значения на случай если вкладка не описана в конфиге
+        $cfg = $sheetConfig[$SheetName] ?? ['startRow' => 3, 'nameCol' => 2, 'raidCol' => null, 'powerCol' => null];
+        $startRowForData = $cfg['startRow'];
         
-        // Получаем данные для всех колонок с правильной стартовой строкой
-        $namesData = getValuesByRowRange($result['json_data'], $startRowForData, 1000, 2);
-        $raidData = getValuesByRowRange($result['json_data'], $startRowForData, 1000, 3);
-        $powerData = getValuesByRowRange($result['json_data'], $startRowForData, 1000, 4);
+        // Получаем данные для колонки с названиями
+        $namesData = getValuesByRowRange($result['json_data'], $startRowForData, 1000, $cfg['nameCol']);
+        
+        // Получаем данные для рейд-колонки (только если задана в конфиге)
+        $raidData = ($cfg['raidCol'] !== null)
+            ? getValuesByRowRange($result['json_data'], $startRowForData, 1000, $cfg['raidCol'])
+            : [];
+        
+        // Получаем данные для колонки блоков питания (только если задана в конфиге)
+        $powerData = ($cfg['powerCol'] !== null)
+            ? getValuesByRowRange($result['json_data'], $startRowForData, 1000, $cfg['powerCol'])
+            : [];
         
         // ОЧИЩАЕМ МАССИВЫ ПЕРЕД КАЖДОЙ ВКЛАДКОЙ
         $combinedData = [];
@@ -130,17 +145,24 @@ foreach ($SheetNames as $index => $SheetName) {
         }
         
         // Выводим только строки с названиями
-        echo "\n📋 Только строки с названиями (Вкладка/Колонка/Строка/Название/Рейд/Блоки Питания):\n";
+        $hasRaid  = ($cfg['raidCol']  !== null);
+        $hasPower = ($cfg['powerCol'] !== null);
+        $headerSuffix = '/Название' . ($hasRaid ? '/Рейд' : '') . ($hasPower ? '/Блоки Питания' : '');
+        echo "\n📋 Только строки с названиями (Вкладка/Колонка/Строка{$headerSuffix}):\n";
         
         if (empty($combinedData)) {
             echo "   Нет данных для отображения\n";
         } else {
             foreach ($combinedData as $row => $data) {
                 if (!empty($data['name'])) {
-                    $output = "   {$SheetName}/2/{$row}";
+                    $output = "   {$SheetName}/{$cfg['nameCol']}/{$row}";
                     $output .= "/" . ($data['name'] ?? '—');
-                    $output .= "/" . ($data['raid'] ?? '—');
-                    $output .= "/" . ($data['power'] ?? '—');
+                    if ($hasRaid) {
+                        $output .= "/" . ($data['raid'] ?? '—');
+                    }
+                    if ($hasPower) {
+                        $output .= "/" . ($data['power'] ?? '—');
+                    }
                     echo $output . "\n";
                 }
             }
