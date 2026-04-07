@@ -137,7 +137,7 @@ foreach ($SheetNames as $index => $SheetName) {
         } else {
             foreach ($combinedData as $row => $data) {
                 if (!empty($data['name'])) {
-                    $output = "   {$SheetName}/2/{$row}";
+                    $output = "   {$SheetName}/{$cfg['nameCol']}/{$row}";
                     $output .= "/" . ($data['name'] ?? '—');
                     $output .= "/" . ($data['raid'] ?? '—');
                     $output .= "/" . ($data['power'] ?? '—');
