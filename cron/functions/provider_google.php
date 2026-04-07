@@ -108,7 +108,7 @@ function getAllDataFromGoogleSheets($apiKey, $userId, $provider, $sheetName = '�
     $appsScriptUrl = 'https://script.google.com/macros/s/' . $fullKey . '/exec';
     
     // Добавляем параметр sheet (название вкладки) к URL и cache-buster для предотвращения кэширования Google
-    $appsScriptUrl .= '?sheet=' . urlencode($sheetName) . '&_t=' . time() . mt_rand(1000, 9999);
+    $appsScriptUrl .= '?sheet=' . urlencode($sheetName) . '&_t=' . time() . '_' . mt_rand(1000, 9999);
 
     // Диагностика: логируем запрашиваемую вкладку и URL (ключ скрыт)
     $safeUrl = 'https://script.google.com/macros/s/***HIDDEN***/exec?sheet=' . urlencode($sheetName) . '&_t=***';
