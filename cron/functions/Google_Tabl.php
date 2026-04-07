@@ -114,16 +114,16 @@ function extractColumnWithCoordinates($allData, $columnSpecifier = 0, $startRow 
  * @param string $apiKey Ключ авторизации (обязательно)
  * @param int $userId ID пользователя (обязательно)
  * @param string $provider Провайдер (обязательно)
+ * @param string $sheetName Название вкладки в Google Sheets (обязательно)
  * @param mixed $columnSpecifier Индекс колонки (0, 1, 2...), имя колонки, или -1/null для ВСЕХ колонок
  * @param int|null $startRow Индекс строки, с которой начинать извлечение (0 - первая строка данных)
  *                           Если значение null или -1, извлекаются все строки
- * @param string $sheetName Название вкладки в Google Sheets (по умолчанию 'Платформы')
  * @return array Массив с результатами:
  *               - 'success' => bool: успешность операции
  *               - 'message' => string: текстовое сообщение о результате
  *               - 'json_data' => string: JSON-строка с извлеченными данными и координатами
  */
-function getColumnDataWithCoordinates($apiKey, $userId, $provider, $columnSpecifier = 0, $startRow = null, $sheetName) {
+function getColumnDataWithCoordinates($apiKey, $userId, $provider, $sheetName, $columnSpecifier = 0, $startRow = null) {
     // Сначала получаем все данные с указанием вкладки
     $allDataResult = getAllDataFromGoogleSheets($apiKey, $userId, $provider, $sheetName);
     
