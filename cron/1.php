@@ -1,4 +1,10 @@
 <?php
+// Определяем константу доступа для подключения к БД
+define('APP_ACCESS', true);
+
+// Подключение к базе данных (Singleton PDO)
+require_once __DIR__ . '/../connect/db.php';
+
 // Функция для получения полного ключа API Google Sheets через API
 require_once __DIR__ . '/functions/provider_google.php';
 
@@ -7,6 +13,9 @@ require_once __DIR__ . '/functions/Google_Tabl.php';
 
 // Функция для получения значения из JSON данных по координатам строки и колонки
 require_once __DIR__ . '/functions/Google_Value.php';
+
+// Функция для сохранения данных в БД
+require_once __DIR__ . '/functions/save_to_db.php';
 
 /**
  * Функция для получения всех данных из Google Sheets через API
@@ -132,18 +141,37 @@ foreach ($SheetNames as $index => $SheetName) {
             }
         }
         
-        // Выводим в новом формате: для каждого сайта — все товары
+        // Выводим в новом формате и сохраняем в БД: для каждого сайта — все товары
         echo "\n";
+        $savedCount   = 0;
+        $skippedCount = 0;
+
         foreach ($urls as $url) {
             foreach ($combinedData as $row => $data) {
                 if (!empty($data['name'])) {
                     $name  = $data['name'];
                     $raid  = $data['raid']  ?? '—';
                     $power = $data['power'] ?? '—';
-                    echo "{$url}|{$SheetName}|{$cfg['nameCol']}|{$row}|{$name}|{$raid}|{$power}\n";
+
+                    $line = "{$url}|{$SheetName}|{$cfg['nameCol']}|{$row}|{$name}|{$raid}|{$power}";
+                    echo $line . "\n";
+
+                    // Сохраняем / обновляем запись в БД
+                    try {
+                        if (parseLineAndSave($pdo, $line)) {
+                            $savedCount++;
+                        } else {
+                            $skippedCount++;
+                        }
+                    } catch (PDOException $e) {
+                        echo "⚠️  Ошибка БД (строка {$row}): " . $e->getMessage() . "\n";
+                        $skippedCount++;
+                    }
                 }
             }
         }
+
+        echo "\n💾 Сохранено/обновлено: {$savedCount}, Пропущено: {$skippedCount}\n";
         
     } else {
         echo "❌ " . $result['message'] . "\n\n";
