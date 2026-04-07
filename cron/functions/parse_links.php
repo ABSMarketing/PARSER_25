@@ -164,8 +164,9 @@ function makeAbsoluteUrl(string $href, string $baseUrl): string
  */
 function saveLinksToDb(PDO $pdo, int $parentId, array $links): array
 {
-    $saved   = 0;
-    $skipped = 0;
+    $inserted = 0;
+    $updated  = 0;
+    $skipped  = 0;
 
     $sql = "
         INSERT INTO `parsed_links` (`parent_id`, `url_a`, `html`)
@@ -189,14 +190,21 @@ function saveLinksToDb(PDO $pdo, int $parentId, array $links): array
             $stmt->bindValue(':url_a',     $urlA,     PDO::PARAM_STR);
             $stmt->bindValue(':html',      $html,     PDO::PARAM_STR);
             $stmt->execute();
-            $saved++;
+
+            // rowCount: 1 = inserted, 2 = updated (MySQL ON DUPLICATE KEY behaviour)
+            $affected = $stmt->rowCount();
+            if ($affected === 1) {
+                $inserted++;
+            } elseif ($affected === 2) {
+                $updated++;
+            }
         } catch (PDOException $e) {
             echo "⚠️  Ошибка сохранения ссылки ({$urlA}): " . $e->getMessage() . "\n";
             $skipped++;
         }
     }
 
-    return ['saved' => $saved, 'skipped' => $skipped];
+    return ['inserted' => $inserted, 'updated' => $updated, 'skipped' => $skipped];
 }
 
 /**
