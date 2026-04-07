@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `parsed_products` (
     `power_supply` VARCHAR(255)    DEFAULT NULL COMMENT 'Блок питания',
     `created_at`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Дата создания',
     `updated_at`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Дата обновления',
+    `sync_batch_id` INT UNSIGNED   NOT NULL DEFAULT 0 COMMENT 'ID сессии синхронизации',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_url_category_name` (`url`(191), `category`(191), `name`(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

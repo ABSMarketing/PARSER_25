@@ -5,7 +5,7 @@
  *                      Нормализация пробелов, проверка на существование
  *                      записи по (url, category, name) и вставка/обновление.
  * Автор:               Команда разработки
- * Версия:              1.0
+ * Версия:              2.0
  * Дата создания:       2026-04-07
  */
 
@@ -26,6 +26,35 @@ function normalizeSpaces(?string $str): string
 }
 
 /**
+ * Генерирует новый уникальный batch_id для текущей сессии синхронизации.
+ * Берёт MAX(sync_batch_id) + 1 из таблицы (первый запуск вернёт 1).
+ *
+ * @param  PDO $pdo  Объект PDO подключения
+ * @return int       Новый batch_id
+ */
+function generateBatchId(PDO $pdo): int
+{
+    $stmt = $pdo->query("SELECT COALESCE(MAX(`sync_batch_id`), 0) + 1 AS next_id FROM `parsed_products`");
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * Удаляет все записи, у которых sync_batch_id НЕ равен текущему batch_id.
+ * Вызывается ПОСЛЕ завершения полной синхронизации всех вкладок.
+ *
+ * @param  PDO $pdo      Объект PDO подключения
+ * @param  int $batchId  Текущий batch_id сессии синхронизации
+ * @return int           Количество удалённых строк
+ */
+function deleteOrphanedRecords(PDO $pdo, int $batchId): int
+{
+    $stmt = $pdo->prepare("DELETE FROM `parsed_products` WHERE `sync_batch_id` != :batch_id");
+    $stmt->bindValue(':batch_id', $batchId, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->rowCount();
+}
+
+/**
  * Сохраняет одну запись в таблицу parsed_products.
  * Если запись с таким (url, category, name) уже существует — обновляет остальные поля.
  * Если не существует — вставляет новую.
@@ -38,6 +67,7 @@ function normalizeSpaces(?string $str): string
  * @param  string $name        Название товара
  * @param  string|null $raid   Рейд контроллер
  * @param  string|null $power  Блок питания
+ * @param  int $batchId        ID сессии синхронизации
  * @return bool                true — если запись вставлена/обновлена
  */
 function saveProductToDb(
@@ -48,7 +78,8 @@ function saveProductToDb(
     ?int $rowIndex,
     string $name,
     ?string $raid,
-    ?string $power
+    ?string $power,
+    int $batchId
 ): bool {
     // Нормализуем пробелы во всех строковых полях
     $url       = normalizeSpaces($url);
@@ -68,15 +99,16 @@ function saveProductToDb(
 
     $sql = "
         INSERT INTO `parsed_products`
-            (`url`, `category`, `column_index`, `row_index`, `name`, `raid`, `power_supply`)
+            (`url`, `category`, `column_index`, `row_index`, `name`, `raid`, `power_supply`, `sync_batch_id`)
         VALUES
-            (:url, :category, :column_index, :row_index, :name, :raid, :power_supply)
+            (:url, :category, :column_index, :row_index, :name, :raid, :power_supply, :batch_id)
         AS new_data
         ON DUPLICATE KEY UPDATE
-            `column_index` = new_data.`column_index`,
-            `row_index`    = new_data.`row_index`,
-            `raid`         = new_data.`raid`,
-            `power_supply` = new_data.`power_supply`
+            `column_index`  = new_data.`column_index`,
+            `row_index`     = new_data.`row_index`,
+            `raid`          = new_data.`raid`,
+            `power_supply`  = new_data.`power_supply`,
+            `sync_batch_id` = new_data.`sync_batch_id`
     ";
 
     $stmt = $pdo->prepare($sql);
@@ -88,6 +120,7 @@ function saveProductToDb(
     $stmt->bindValue(':name',         $name,        PDO::PARAM_STR);
     $stmt->bindValue(':raid',         $raid,        $raid  !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
     $stmt->bindValue(':power_supply', $power,       $power !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+    $stmt->bindValue(':batch_id',     $batchId,     PDO::PARAM_INT);
 
     return $stmt->execute();
 }
@@ -96,11 +129,12 @@ function saveProductToDb(
  * Разбирает строку формата «url|category|col|row|name|raid|power»
  * и сохраняет данные в БД.
  *
- * @param  PDO    $pdo  Объект PDO подключения
- * @param  string $line Строка данных через разделитель |
- * @return bool         true — если запись вставлена/обновлена
+ * @param  PDO    $pdo     Объект PDO подключения
+ * @param  string $line   Строка данных через разделитель |
+ * @param  int $batchId   ID сессии синхронизации
+ * @return bool           true — если запись вставлена/обновлена
  */
-function parseLineAndSave(PDO $pdo, string $line): bool
+function parseLineAndSave(PDO $pdo, string $line, int $batchId): bool
 {
     // Формат: url|category|column_index|row_index|name|raid|power_supply (7 полей)
     $expectedFields = 7;
@@ -118,5 +152,5 @@ function parseLineAndSave(PDO $pdo, string $line): bool
     $raid        = $parts[5];
     $power       = $parts[6];
 
-    return saveProductToDb($pdo, $url, $category, $columnIndex, $rowIndex, $name, $raid, $power);
+    return saveProductToDb($pdo, $url, $category, $columnIndex, $rowIndex, $name, $raid, $power, $batchId);
 }
