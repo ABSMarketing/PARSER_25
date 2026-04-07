@@ -17,6 +17,10 @@ require_once __DIR__ . '/functions/Google_Value.php';
 // Функция для сохранения данных в БД
 require_once __DIR__ . '/functions/save_to_db.php';
 
+// Генерируем уникальный ID для этой сессии синхронизации
+$batchId = generateBatchId($pdo);
+echo "🔄 Batch ID синхронизации: {$batchId}\n\n";
+
 /**
  * Функция для получения всех данных из Google Sheets через API
  * Получаем URL из раздела Платформы
@@ -158,7 +162,7 @@ foreach ($SheetNames as $index => $SheetName) {
 
                     // Сохраняем / обновляем запись в БД
                     try {
-                        if (parseLineAndSave($pdo, $line)) {
+                        if (parseLineAndSave($pdo, $line, $batchId)) {
                             $savedCount++;
                         } else {
                             $skippedCount++;
@@ -190,4 +194,7 @@ foreach ($SheetNames as $index => $SheetName) {
 echo "════════════════════════════════════════════\n";
 echo "📊 ОБРАБОТКА ЗАВЕРШЕНА\n";
 echo "════════════════════════════════════════════\n";
+
+$deletedCount = deleteOrphanedRecords($pdo, $batchId);
+echo "🗑️  Удалено устаревших записей: {$deletedCount}\n";
 ?>
