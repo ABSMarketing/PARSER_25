@@ -62,7 +62,7 @@ function getDeepseekApiKey(string $apiKey, int $userId): array
 }
 
 /**
- * Отправляет товар и список ссылок в DeepSeek для классификации.
+ * Внутренняя функция: отправляет один запрос к DeepSeek для классификации ссылок.
  * DeepSeek определяет, на какой странице стоит искать товар (priority=1)
  * или не стоит (priority=0), и возвращает JSON с execution_status=1.
  *
@@ -71,7 +71,7 @@ function getDeepseekApiKey(string $apiKey, int $userId): array
  * @param  array  $links        Массив ссылок из parsed_links
  * @return array                ['success' => bool, 'data' => array|null, 'raw' => string|null, 'error' => string|null]
  */
-function classifyLinksWithDeepseek(string $deepseekKey, string $productInfo, array $links): array
+function _sendDeepseekClassificationRequest(string $deepseekKey, string $productInfo, array $links): array
 {
     $linksJson = json_encode($links, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -112,7 +112,8 @@ PROMPT;
             'Authorization: Bearer ' . $deepseekKey,
         ],
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 60,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT        => 120,
     ]);
 
     $response  = curl_exec($ch);
@@ -145,4 +146,39 @@ PROMPT;
     }
 
     return ['success' => true, 'data' => $classified, 'raw' => $content, 'error' => null];
+}
+
+/**
+ * Отправляет товар и список ссылок в DeepSeek для классификации с поддержкой повторных попыток.
+ * При ошибке таймаута выполняет до $maxRetries попыток с паузой 5 секунд между ними.
+ *
+ * @param  string $deepseekKey  API-ключ DeepSeek
+ * @param  string $productInfo  Описание товара (название | raid | блок питания)
+ * @param  array  $links        Массив ссылок из parsed_links
+ * @param  int    $maxRetries   Максимальное количество попыток (по умолчанию 3)
+ * @return array                ['success' => bool, 'data' => array|null, 'raw' => string|null, 'error' => string|null]
+ */
+function classifyLinksWithDeepseek(string $deepseekKey, string $productInfo, array $links, int $maxRetries = 3): array
+{
+    $result = ['success' => false, 'data' => null, 'raw' => null, 'error' => null];
+
+    for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+        $result = _sendDeepseekClassificationRequest($deepseekKey, $productInfo, $links);
+
+        if ($result['success']) {
+            return $result;
+        }
+
+        // При ошибке таймаута — повторить попытку
+        if (str_contains($result['error'] ?? '', 'timed out') && $attempt < $maxRetries) {
+            echo "⏳ Попытка {$attempt}/{$maxRetries} не удалась (таймаут), повтор через 5 сек...\n";
+            sleep(5);
+            continue;
+        }
+
+        // Для остальных ошибок — вернуть сразу без повтора
+        return $result;
+    }
+
+    return $result;
 }
