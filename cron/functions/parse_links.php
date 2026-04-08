@@ -215,7 +215,7 @@ function saveLinksToDb(PDO $pdo, int $parentId, array $links): array
  * @param  int $status    Новый статус (1 — успех, 2 — ошибка)
  * @return void
  */
-function updateProductStatus(PDO $pdo, int $productId, int $status): void
+function updateProductParsingStatus(PDO $pdo, int $productId, int $status): void
 {
     $sql = "UPDATE `parsed_products` SET `status` = :status WHERE `id` = :id";
     $stmt = $pdo->prepare($sql);
