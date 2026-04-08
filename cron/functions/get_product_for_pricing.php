@@ -25,7 +25,7 @@ function getProductForPricing(PDO $pdo): ?array
         SELECT `id`, `name`, `raid`, `power_supply`, `url`, `category`
         FROM `parsed_products`
         WHERE (`price` IS NULL OR (`price` = 0 AND `url` NOT LIKE '%u-server.ru%'))
-          AND `status` = 2
+          AND `status` = 1
         ORDER BY `updated_at` ASC
         LIMIT 1
     ";
