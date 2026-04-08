@@ -36,22 +36,29 @@ function getProductForProcessing(PDO $pdo): ?array
 }
 
 /**
- * Возвращает все записи из parsed_links, связанные с указанным parent_id.
+ * Возвращает порцию (батч) записей из parsed_links, связанных с указанным parent_id,
+ * у которых execution_status IS NULL (необработанные).
+ * Сортировка по id ASC обеспечивает детерминированный порядок обработки.
  *
  * @param  PDO $pdo       Объект PDO подключения
  * @param  int $parentId  ID родительской записи из parsed_products
- * @return array           Массив ассоциативных массивов
+ * @param  int $limit     Максимальное количество ссылок в батче (по умолчанию 10)
+ * @return array           Массив ассоциативных массивов (не более $limit элементов)
  */
-function getLinksByParentId(PDO $pdo, int $parentId): array
+function getLinksByParentId(PDO $pdo, int $parentId, int $limit = 10): array
 {
     $sql = "
         SELECT `id`, `html`, `execution_status`, `priority`
         FROM `parsed_links`
         WHERE `parent_id` = :parent_id
+          AND `execution_status` IS NULL
+        ORDER BY `id` ASC
+        LIMIT :limit
     ";
 
     $stmt = $pdo->prepare($sql);
     $stmt->bindValue(':parent_id', $parentId, PDO::PARAM_INT);
+    $stmt->bindValue(':limit',     $limit,    PDO::PARAM_INT);
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
