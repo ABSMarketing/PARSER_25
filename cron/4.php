@@ -4,7 +4,7 @@
  * Назначение:          Крон-скрипт для поиска цены товара через HTML-парсинг и DeepSeek.
  *
  * Логика:
- *  1. Получаем товар из parsed_products (price IS NULL, status = 2).
+ *  1. Получаем товар из parsed_products (price IS NULL OR (price = 0 AND url NOT LIKE '%u-server.ru%'), status = 2).
  *  2. Берём самую приоритетную ссылку из parsed_links (execution_status = 1).
  *  3. Загружаем HTML-страницу через прокси (с fallback на прямой запрос).
  *  4. Очищаем HTML и дозированно (по чанкам) отправляем в DeepSeek для поиска цены.
