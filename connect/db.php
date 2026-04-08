@@ -106,6 +106,20 @@ class Database
     }
 
     /**
+     * Переподключение к базе данных.
+     * Закрывает текущее соединение и создаёт новое.
+     * Используется после длительных операций (например, вызов внешних API),
+     * чтобы избежать ошибки "MySQL server has gone away".
+     *
+     * @return PDO Новый объект PDO
+     */
+    public static function reconnect(): PDO
+    {
+        self::close();
+        return self::get();
+    }
+
+    /**
      * Закрытие соединения при завершении скрипта
      * Регистрируется через register_shutdown_function()
      */

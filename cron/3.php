@@ -127,6 +127,10 @@ if (empty($links)) {
 
     $deepseekResult = classifyLinksWithDeepseek($keyResult['key'], $productInfo, $links);
 
+    // Переподключение к БД после длительного вызова DeepSeek API,
+    // чтобы избежать ошибки "MySQL server has gone away"
+    $pdo = Database::reconnect();
+
     if (!$deepseekResult['success']) {
         echo "❌ Ошибка DeepSeek: {$deepseekResult['error']}\n";
         if ($deepseekResult['raw']) {
