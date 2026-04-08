@@ -101,7 +101,7 @@ if ($pageResult === null) {
     } else {
         echo "❌ Ошибка загрузки: {$pageResult['error']}\n";
         echo "\n⛔ Не удалось загрузить страницу. Устанавливаем статус ошибки.\n";
-        updateProductStatus($pdo, $productId, 2);
+        updateProductParsingStatus($pdo, $productId, 2);
         exit(1);
     }
 }
@@ -118,7 +118,7 @@ echo "📊 Найдено ссылок: " . count($links) . "\n\n";
 
 if (empty($links)) {
     echo "ℹ️  На странице не найдено ни одной ссылки.\n";
-    updateProductStatus($pdo, $productId, 1);
+    updateProductParsingStatus($pdo, $productId, 1);
     echo "\n✅ Статус записи обновлён (1 — обработано, ссылок нет).\n";
     exit(0);
 }
@@ -139,7 +139,7 @@ echo "⏭️  Пропущено:      {$result['skipped']}\n";
 // ========================================
 // 5. ОБНОВЛЯЕМ СТАТУС ЗАПИСИ
 // ========================================
-updateProductStatus($pdo, $productId, 1);
+updateProductParsingStatus($pdo, $productId, 1);
 
 echo "\n════════════════════════════════════════════\n";
 echo "✅ ОБРАБОТКА ЗАВЕРШЕНА\n";
