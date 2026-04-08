@@ -58,6 +58,81 @@ function getLinksByParentId(PDO $pdo, int $parentId): array
 }
 
 /**
+ * Обновляет записи в parsed_links по результатам классификации DeepSeek.
+ * Для каждого элемента массива $classifiedData выполняет UPDATE полей
+ * execution_status и priority. Все обновления выполняются в одной транзакции.
+ *
+ * @param  PDO   $pdo            Объект PDO подключения
+ * @param  array $classifiedData Массив объектов из ответа DeepSeek (поля: id, execution_status, priority)
+ * @return bool                  true при успехе, false при ошибке
+ */
+function updateLinksClassification(PDO $pdo, array $classifiedData): bool
+{
+    if (empty($classifiedData)) {
+        return true;
+    }
+
+    $sql = "
+        UPDATE `parsed_links`
+        SET `execution_status` = :execution_status,
+            `priority`         = :priority
+        WHERE `id` = :id
+    ";
+
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare($sql);
+
+        foreach ($classifiedData as $item) {
+            if (!isset($item['id'])) {
+                echo "⚠️  Пропущен элемент без поля id в ответе DeepSeek\n";
+                continue;
+            }
+            $stmt->bindValue(':id',               (int) $item['id'],               PDO::PARAM_INT);
+            $stmt->bindValue(':execution_status', (int) ($item['execution_status'] ?? 1), PDO::PARAM_INT);
+            $stmt->bindValue(':priority',         (int) ($item['priority']         ?? 0), PDO::PARAM_INT);
+            $stmt->execute();
+        }
+
+        $pdo->commit();
+        return true;
+    } catch (Exception $e) {
+        try {
+            $pdo->rollBack();
+        } catch (Exception $rollbackException) {
+            echo "❌ Ошибка отката транзакции: " . $rollbackException->getMessage() . "\n";
+        }
+        echo "❌ Ошибка записи в parsed_links: " . $e->getMessage() . "\n";
+        return false;
+    }
+}
+
+/**
+ * Обновляет запись в parsed_products по итогам обработки.
+ * При успехе устанавливает status=2 и обновляет updated_at.
+ * При неудаче обновляет только updated_at (статус не меняется),
+ * чтобы запись «уходила в конец очереди» (ORDER BY updated_at ASC).
+ *
+ * @param  PDO  $pdo       Объект PDO подключения
+ * @param  int  $productId ID записи в parsed_products
+ * @param  bool $success   true — успех, false — неудача
+ * @return void
+ */
+function updateProductStatus(PDO $pdo, int $productId, bool $success): void
+{
+    if ($success) {
+        $sql  = "UPDATE `parsed_products` SET `status` = 2, `updated_at` = NOW() WHERE `id` = :id";
+    } else {
+        $sql  = "UPDATE `parsed_products` SET `updated_at` = NOW() WHERE `id` = :id";
+    }
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->bindValue(':id', $productId, PDO::PARAM_INT);
+    $stmt->execute();
+}
+
+/**
  * Формирует строку описания товара из данных parsed_products.
  * Включает название, рейд-контроллер (если есть) и блок питания (если есть).
  *
