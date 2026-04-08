@@ -198,6 +198,18 @@ PROMPT;
         $currency    = $parsed['currency']              ?? null;
         $productName = $parsed['product_name_on_page']  ?? null;
 
+        // Очищаем цену: оставляем только цифры и точку (десятичный разделитель)
+        if ($price !== null) {
+            $priceStr = preg_replace('/[^0-9.]/', '', (string) $price);
+            // Убираем лишние точки, оставляя только последнюю как десятичный разделитель
+            if (substr_count($priceStr, '.') > 1) {
+                $parts = explode('.', $priceStr);
+                $decimal = array_pop($parts);
+                $priceStr = implode('', $parts) . '.' . $decimal;
+            }
+            $price = ($priceStr !== '' && $priceStr !== '.') ? (float) $priceStr : null;
+        }
+
         return [
             'success'      => true,
             'status'       => $status,
