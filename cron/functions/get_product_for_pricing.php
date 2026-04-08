@@ -13,7 +13,7 @@
 
 /**
  * Возвращает одну запись из parsed_products для поиска цены.
- * Фильтр: price IS NULL AND status = 2 (ссылки уже классифицированы).
+ * Фильтр: (price IS NULL OR (price = 0 AND url NOT LIKE '%u-server.ru%')) AND status = 2.
  * Сортировка: ORDER BY updated_at ASC (FIFO-очередь).
  *
  * @param  PDO $pdo  Объект PDO подключения
@@ -24,7 +24,7 @@ function getProductForPricing(PDO $pdo): ?array
     $sql = "
         SELECT `id`, `name`, `raid`, `power_supply`, `url`, `category`
         FROM `parsed_products`
-        WHERE `price` IS NULL
+        WHERE (`price` IS NULL OR (`price` = 0 AND `url` NOT LIKE '%u-server.ru%'))
           AND `status` = 2
         ORDER BY `updated_at` ASC
         LIMIT 1
