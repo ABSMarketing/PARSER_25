@@ -25,15 +25,6 @@
 // Определяем константу доступа для подключения к БД
 define('APP_ACCESS', true);
 
-// Увеличиваем лимит выполнения для крон-скрипта (5 минут)
-set_time_limit(300);
-
-// Отключаем буферизацию вывода для мгновенного отображения логов
-ob_implicit_flush(true);
-if (ob_get_level()) {
-    ob_end_flush();
-}
-
 // Подключение к базе данных (Singleton PDO)
 require_once __DIR__ . '/../connect/db.php';
 
@@ -46,8 +37,8 @@ require_once __DIR__ . '/functions/provider_deepseek.php';
 // ========================================
 // НАСТРОЙКИ API
 // ========================================
-$Api_Key  = getenv('SERVERO_API_KEY') ?: die("❌ Переменная окружения SERVERO_API_KEY не задана\n");
-$Users_ID = (int) (getenv('SERVERO_USERS_ID') ?: 1);
+$Api_Key  = 'dd28c37f63d429e5e0056b53f5a4800d4258b1d886a1dba7f34cd6948fe86d62';
+$Users_ID = 1;
 
 // ========================================
 // 1. ПОЛУЧАЕМ ЗАПИСЬ ДЛЯ ОБРАБОТКИ
