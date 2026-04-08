@@ -116,14 +116,19 @@ PROMPT;
             'Authorization: Bearer ' . $deepseekKey,
         ],
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 15,
-        CURLOPT_TIMEOUT        => 120,
+        CURLOPT_CONNECTTIMEOUT => 30,
+        CURLOPT_TIMEOUT        => 300,
     ]);
 
     $response  = curl_exec($ch);
     $curlError = curl_error($ch);
     $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    echo "📡 DeepSeek ответ: HTTP {$httpCode}\n";
+    if ($curlError) {
+        echo "⚠️  cURL ошибка: {$curlError}\n";
+    }
 
     if ($curlError) {
         return ['success' => false, 'data' => null, 'raw' => null, 'error' => 'cURL: ' . $curlError];
@@ -173,9 +178,16 @@ function classifyLinksWithDeepseek(string $deepseekKey, string $productInfo, arr
             return $result;
         }
 
-        // При ошибке таймаута — повторить попытку
-        if (str_contains($result['error'] ?? '', 'timed out') && $attempt < $maxRetries) {
-            echo "⏳ Попытка {$attempt}/{$maxRetries} не удалась (таймаут), повтор через 5 сек...\n";
+        // При ошибке таймаута или временных ошибок сервера — повторить попытку
+        $errorMsg  = $result['error'] ?? '';
+        $isRetryable = str_contains($errorMsg, 'timed out')
+                    || str_contains($errorMsg, 'timeout')
+                    || str_contains($errorMsg, 'HTTP 429')
+                    || str_contains($errorMsg, 'HTTP 503')
+                    || str_contains($errorMsg, 'HTTP 502');
+
+        if ($isRetryable && $attempt < $maxRetries) {
+            echo "⏳ Попытка {$attempt}/{$maxRetries} не удалась ({$errorMsg}), повтор через 5 сек...\n";
             sleep(5);
             continue;
         }
