@@ -4,12 +4,13 @@
  * Назначение:          Крон-скрипт для поиска цены товара через HTML-парсинг и DeepSeek.
  *
  * Логика:
- *  1. Получаем товар из parsed_products (price IS NULL OR (price = 0 AND url NOT LIKE '%u-server.ru%'), status = 2).
- *  2. Берём самую приоритетную ссылку из parsed_links (execution_status = 1).
- *  3. Загружаем HTML-страницу через прокси (с fallback на прямой запрос).
- *  4. Очищаем HTML и дозированно (по чанкам) отправляем в DeepSeek для поиска цены.
- *  5. При нахождении цены — записываем в parsed_products.price и product_url.
- *  6. При отсутствии — помечаем ссылку как обработанную, переходим к следующей.
+ *  1. Одним запросом получаем товар из parsed_products (price IS NULL, status = 1)
+ *     вместе с наиболее приоритетной ссылкой из parsed_links (execution_status = 1)
+ *     через LEFT JOIN (сортировка: updated_at ASC, priority DESC).
+ *  2. Загружаем HTML-страницу через прокси (с fallback на прямой запрос).
+ *  3. Очищаем HTML и дозированно (по чанкам) отправляем в DeepSeek для поиска цены.
+ *  4. При нахождении цены — записываем в parsed_products.price и product_url.
+ *  5. При отсутствии — помечаем ссылку как обработанную, переходим к следующей.
  *
  * Скрипт рассчитан на многократный запуск по крону — каждый запуск обрабатывает
  * одну ссылку для одного товара.
@@ -61,20 +62,30 @@ $proxyApiKey = 'b0a4b2f682dd07568287b3b7df1b7851ddd363bd0babd1a7f1cc605b3ae6908c
 $proxyUserId = 1;
 
 // ========================================
-// 1. ПОЛУЧАЕМ ТОВАР ДЛЯ ПОИСКА ЦЕНЫ
+// 1. ПОЛУЧАЕМ ТОВАР + ССЫЛКУ ОДНИМ ЗАПРОСОМ
 // ========================================
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-echo "🔍 Поиск товара для определения цены...\n";
+echo "🔍 Поиск товара и ссылки для определения цены...\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
-$product = getProductForPricing($pdo);
+$result = getProductWithLink($pdo);
 
-if ($product === null) {
+if ($result === null) {
     echo "✅ Нет товаров для поиска цены.\n";
     exit(0);
 }
 
-$productId = (int) $product['id'];
+$productId = (int) $result['product_id'];
+
+// Формируем массив товара для совместимости с buildProductInfoString()
+$product = [
+    'id'           => $result['product_id'],
+    'name'         => $result['name'],
+    'raid'         => $result['raid'],
+    'power_supply' => $result['power_supply'],
+    'url'          => $result['url'],
+    'category'     => $result['category'],
+];
 
 // Сразу помечаем запись текущим временем, чтобы при следующем запуске
 // скрипт получил запись с наиболее старым updated_at
@@ -93,22 +104,20 @@ echo "📝 Товар: {$productInfo}\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
 // ========================================
-// 3. ПОЛУЧАЕМ ПРИОРИТЕТНУЮ ССЫЛКУ
+// 3. ПРОВЕРЯЕМ НАЛИЧИЕ ССЫЛКИ
 // ========================================
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 echo "🔗 Ссылка для парсинга:\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
-$link = getBestLinkForProduct($pdo, $productId);
-
-if ($link === null) {
+if ($result['link_id'] === null) {
     echo "⚠️ Все ссылки исчерпаны, цена не найдена → price = 0\n";
     saveProductPrice($pdo, $productId, 0, null);
     exit(0);
 }
 
-$linkId  = (int) $link['id'];
-$linkUrl = $link['url_a'];
+$linkId  = (int) $result['link_id'];
+$linkUrl = $result['link_url'];
 
 echo "📄 Link ID: {$linkId}\n";
 echo "🌐 URL: {$linkUrl}\n\n";
