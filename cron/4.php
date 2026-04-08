@@ -210,7 +210,8 @@ $finalLinkStatus = 2; // по умолчанию — обработано, не 
 
 if ($searchResult['status'] === 'FOUND' && $searchResult['price'] > 0) {
     // Сценарий A: Цена найдена
-    $finalPrice      = $searchResult['price'];
+    // Очищаем цену: оставляем только цифры и точку (убираем пробелы, символы валют и прочее)
+    $finalPrice      = (float) preg_replace('/[^0-9.]/', '', (string) $searchResult['price']);
     $finalUrl        = $linkUrl;
     $finalLinkStatus = 3;
 
