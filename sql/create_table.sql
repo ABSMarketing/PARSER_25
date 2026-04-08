@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS `parsed_products` (
     `name`         VARCHAR(500)    NOT NULL COMMENT 'Название товара',
     `raid`         VARCHAR(255)    DEFAULT NULL COMMENT 'Рейд контроллер',
     `power_supply` VARCHAR(255)    DEFAULT NULL COMMENT 'Блок питания',
+    `price`        DECIMAL(12,2)   DEFAULT NULL COMMENT 'Цена товара',
+    `product_url`  VARCHAR(1000)   DEFAULT NULL COMMENT 'Ссылка на карточку товара',
     `created_at`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Дата создания',
     `updated_at`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Дата обновления',
     `sync_batch_id` INT UNSIGNED   NOT NULL DEFAULT 0 COMMENT 'ID сессии синхронизации',
