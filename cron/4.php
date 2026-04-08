@@ -76,6 +76,10 @@ if ($product === null) {
 
 $productId = (int) $product['id'];
 
+// Сразу помечаем запись текущим временем, чтобы при следующем запуске
+// скрипт получил запись с наиболее старым updated_at
+touchProductUpdatedAt($pdo, $productId);
+
 echo "📄 ID записи: {$productId}\n";
 echo "🔗 Сайт: {$product['url']}\n";
 echo "📂 Категория: {$product['category']}\n\n";
