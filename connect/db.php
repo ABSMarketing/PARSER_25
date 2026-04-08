@@ -43,24 +43,36 @@ class Database
     private $pdo = null;
 
     /**
-     * @var string Хост базы данных
+     * @var string|null Хост базы данных
      */
-    private static $host = 'localhost';
+    private static $host = null;
 
     /**
-     * @var string Название базы данных
+     * @var string|null Название базы данных
      */
-    private static $dbName = 'serveraa_crm';
+    private static $dbName = null;
 
     /**
-     * @var string Имя пользователя базы данных
+     * @var string|null Имя пользователя базы данных
      */
-    private static $userName = 'serveraa_crm';
+    private static $userName = null;
 
     /**
-     * @var string Пароль пользователя базы данных
+     * @var string|null Пароль пользователя базы данных
      */
-    private static $password = 'B6V5k37gPJi*';
+    private static $password = null;
+
+    /**
+     * Инициализация параметров подключения из переменных окружения.
+     * Вызывается автоматически перед первым подключением.
+     */
+    public static function init(): void
+    {
+        self::$host     = getenv('DB_HOST') ?: 'localhost';
+        self::$dbName   = getenv('DB_NAME') ?: die("❌ Переменная окружения DB_NAME не задана\n");
+        self::$userName = getenv('DB_USER') ?: die("❌ Переменная окружения DB_USER не задана\n");
+        self::$password = getenv('DB_PASSWORD') ?: die("❌ Переменная окружения DB_PASSWORD не задана\n");
+    }
 
     /**
      * Приватный конструктор для предотвращения прямого создания экземпляра
@@ -87,6 +99,9 @@ class Database
     public static function get(): PDO
     {
         if (self::$instance === null) {
+            if (self::$dbName === null) {
+                self::init();
+            }
             self::$instance = new self();
         }
         
