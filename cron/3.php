@@ -79,6 +79,12 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 $links = getLinksByParentId($pdo, $productId);
 
+$maxLinksPerBatch = 50;
+if (count($links) > $maxLinksPerBatch) {
+    echo "⚠️  Ссылок слишком много (" . count($links) . "), обрабатываем первые {$maxLinksPerBatch}\n";
+    $links = array_slice($links, 0, $maxLinksPerBatch);
+}
+
 if (empty($links)) {
     echo "ℹ️  Связанных ссылок не найдено.\n";
 } else {
