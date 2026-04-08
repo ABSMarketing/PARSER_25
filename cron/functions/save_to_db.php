@@ -5,9 +5,14 @@
  *                      Нормализация пробелов, проверка на существование
  *                      записи по (url, category, name) и вставка/обновление.
  * Автор:               Команда разработки
- * Версия:              2.0
+ * Версия:              2.1
  * Дата создания:       2026-04-07
  */
+
+/**
+ * Максимальное значение sync_batch_id, после которого счётчик сбрасывается.
+ */
+define('SYNC_BATCH_ID_LIMIT', 1000000);
 
 /**
  * Нормализация пробелов в строке:
@@ -29,13 +34,25 @@ function normalizeSpaces(?string $str): string
  * Генерирует новый уникальный batch_id для текущей сессии синхронизации.
  * Берёт MAX(sync_batch_id) + 1 из таблицы (первый запуск вернёт 1).
  *
+ * При достижении SYNC_BATCH_ID_LIMIT сбрасывает все существующие записи
+ * на sync_batch_id = 0 и возвращает 1, начиная цикл заново.
+ *
  * @param  PDO $pdo  Объект PDO подключения
  * @return int       Новый batch_id
  */
 function generateBatchId(PDO $pdo): int
 {
-    $stmt = $pdo->query("SELECT COALESCE(MAX(`sync_batch_id`), 0) + 1 AS next_id FROM `parsed_products`");
-    return (int) $stmt->fetchColumn();
+    $stmt = $pdo->query("SELECT COALESCE(MAX(`sync_batch_id`), 0) FROM `parsed_products`");
+    $currentMax = (int) $stmt->fetchColumn();
+
+    if ($currentMax >= SYNC_BATCH_ID_LIMIT) {
+        // Сбрасываем все записи на 0, новый batch_id начнётся с 1
+        $pdo->exec("UPDATE `parsed_products` SET `sync_batch_id` = 0");
+        echo "⚠️  sync_batch_id достиг лимита ({$currentMax} >= " . SYNC_BATCH_ID_LIMIT . "). Счётчик сброшен.\n";
+        return 1;
+    }
+
+    return $currentMax + 1;
 }
 
 /**
