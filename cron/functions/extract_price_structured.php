@@ -426,7 +426,7 @@ function parseNumericPrice(string $priceStr): ?float
     } elseif ($hasComma) {
         // Может быть "1234,56" (десятичный разделитель) или "1,234" (разделитель тысяч)
         $parts = explode(',', $cleaned);
-        if (count($parts) === 2 && strlen(end($parts)) <= 2) {
+        if (count($parts) === 2 && strlen($parts[count($parts) - 1]) <= 2) {
             // "1234,56" — десятичный
             $cleaned = str_replace(',', '.', $cleaned);
         } else {
