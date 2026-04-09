@@ -13,8 +13,13 @@ jobs:
       - name: 📤 Upload files to FTP server
         uses: SamKirkland/FTP-Deploy-Action@v4.0.0
         with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
+          # server: ${{ secrets.FTP_HOST }}
+          # username: ${{ secrets.FTP_USER }}
+          # password: ${{ secrets.FTP_PASS }}
+
+          server: "serveraa.beget.tech"       # Прямое указание
+          username: "serveraa_11"             # Прямое указание
+          password: "BNl62ZIe!qXN"            # Прямое указание
+
           local-dir: ./  # Папка с файлами для загрузки (обычно корень или ./dist)
           server-dir: /public_html/  # Папка на сервере, куда загружать
