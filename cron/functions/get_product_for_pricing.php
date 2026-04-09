@@ -15,7 +15,7 @@
  * Возвращает одну запись из parsed_products вместе с наиболее приоритетной
  * ссылкой из parsed_links за один SQL-запрос (LEFT JOIN).
  *
- * Фильтр товара:  price IS NULL, status = 1.
+ * Фильтр товара:  price IS NULL, price_status IS NULL, status = 2 (все ссылки классифицированы скриптом 3.php).
  * Фильтр ссылки:  execution_status = 1.
  * Сортировка:     updated_at ASC (самый старый товар), priority DESC (лучшая ссылка).
  *
@@ -42,7 +42,7 @@ function getProductWithLink(PDO $pdo): ?array
            AND pl.`execution_status` = 1
         WHERE pp.`price` IS NULL
           AND pp.`price_status` IS NULL
-          AND pp.`status` = 1
+          AND pp.`status` = 2
         ORDER BY pp.`updated_at` ASC, pl.`priority` DESC
         LIMIT 1
     ";
