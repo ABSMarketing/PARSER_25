@@ -66,9 +66,13 @@ function cleanHtmlForPriceSearch(string $html): string
     // Удаляем все HTML-тэги <img> (одиночные)
     $html = preg_replace('/<img\b[^>]*\/?>/i', '', $html);
 
-    // Удаляем все HTML-атрибуты кроме полезных (class, id, itemprop, data-price)
-    // Это значительно уменьшает объём HTML
-    $html = preg_replace('/\s+(?!class=|id=|itemprop=|data-price)(?:style|onclick|onload|onmouseover|srcset|sizes|loading|decoding|fetchpriority|crossorigin|integrity|nonce|referrerpolicy)=["\'][^"\']*["\']/i', '', $html);
+    // Удаляем шумовые HTML-атрибуты для уменьшения объёма
+    $noiseAttrs = ['style', 'onclick', 'onload', 'onmouseover', 'srcset', 'sizes',
+                   'loading', 'decoding', 'fetchpriority', 'crossorigin', 'integrity',
+                   'nonce', 'referrerpolicy'];
+    foreach ($noiseAttrs as $attr) {
+        $html = preg_replace('/\s+' . $attr . '=["\'][^"\']*["\']/i', '', $html);
+    }
 
     // Схлопываем множественные пробелы / переводы строк в одинарные
     $html = preg_replace('/\s+/', ' ', $html);

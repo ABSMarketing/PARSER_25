@@ -366,9 +366,9 @@ function extractPriceFromDataAttributes(string $html): array
 
     // Ищем data-price="число" или data-product-price="число"
     $patterns = [
-        '/data-price=["\']([0-9][0-9\s.,]*)["\'/i',
-        '/data-product-price=["\']([0-9][0-9\s.,]*)["\'/i',
-        '/data-price-amount=["\']([0-9][0-9\s.,]*)["\'/i',
+        '/data-price=["\']([0-9][0-9\s.,]*)["\']/',
+        '/data-product-price=["\']([0-9][0-9\s.,]*)["\']/',
+        '/data-price-amount=["\']([0-9][0-9\s.,]*)["\']/',
     ];
 
     foreach ($patterns as $pattern) {
