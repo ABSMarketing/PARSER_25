@@ -1,0 +1,20 @@
+name: 🚀 Deploy via FTP
+
+on:
+  push:
+    branches: [main]  # Или master, если у вас так названа основная ветка
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: 📤 Upload files to FTP server
+        uses: SamKirkland/FTP-Deploy-Action@v4.0.0
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          local-dir: ./  # Папка с файлами для загрузки (обычно корень или ./dist)
+          server-dir: /public_html/  # Папка на сервере, куда загружать
