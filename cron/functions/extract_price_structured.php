@@ -434,13 +434,27 @@ function parseNumericPrice(string $priceStr): ?float
             $cleaned = str_replace(',', '', $cleaned);
         }
     }
-    // Если только точка — оставляем как есть (стандартный формат)
-
-    // Убираем множественные точки, оставляя последнюю
-    if (substr_count($cleaned, '.') > 1) {
-        $parts   = explode('.', $cleaned);
-        $decimal = array_pop($parts);
-        $cleaned = implode('', $parts) . '.' . $decimal;
+    // Если только точки (без запятых): определяем, являются ли они разделителями тысяч или десятичным разделителем
+    if ($hasDot && !$hasComma && substr_count($cleaned, '.') > 1) {
+        $parts      = explode('.', $cleaned);
+        $partsCount = count($parts);
+        // Если все группы после первой содержат ровно 3 цифры — точки являются разделителями тысяч
+        // Пример: "1.234.567" → "1234567" (не "1234.567")
+        $allGroupsAreThreeDigits = true;
+        for ($i = 1; $i < $partsCount; $i++) {
+            if (strlen($parts[$i]) !== 3) {
+                $allGroupsAreThreeDigits = false;
+                break;
+            }
+        }
+        if ($allGroupsAreThreeDigits) {
+            // "1.234.567" — все точки являются разделителями тысяч
+            $cleaned = str_replace('.', '', $cleaned);
+        } else {
+            // Последняя точка — десятичный разделитель, остальные убираем
+            $decimal = array_pop($parts);
+            $cleaned = implode('', $parts) . '.' . $decimal;
+        }
     }
 
     if ($cleaned === '' || $cleaned === '.') {

@@ -190,9 +190,13 @@ PROMPT;
         // Проверяем cURL ошибки
         if ($curlError) {
             $lastError = 'cURL: ' . $curlError;
-            $isRetryable = str_contains($curlError, 'timed out') || str_contains($curlError, 'timeout');
+            $isRetryable = str_contains($curlError, 'timed out')
+                        || str_contains($curlError, 'timeout')
+                        || str_contains($curlError, 'Connection refused')
+                        || str_contains($curlError, 'Could not connect')
+                        || str_contains($curlError, 'Failed to connect');
             if ($isRetryable && $attempt < $maxRetries) {
-                echo "⏳ Попытка {$attempt}/{$maxRetries} не удалась (таймаут), повтор через 5 сек...\n";
+                echo "⏳ Попытка {$attempt}/{$maxRetries} не удалась (сетевая ошибка), повтор через 5 сек...\n";
                 sleep(5);
                 continue;
             }
