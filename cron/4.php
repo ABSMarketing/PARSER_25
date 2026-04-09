@@ -256,12 +256,21 @@ if ($searchResult['status'] === 'FOUND' && $searchResult['price'] > 0) {
     echo "⚠️ HTML после очистки пустой\n";
     echo "✅ parsed_links.execution_status = 2\n";
 
+} elseif ($searchResult['status'] === 'NO_PRICE') {
+    // Сценарий C: Товар найден, но цена отсутствует
+    updateLinkExecutionStatus($pdo, $linkId, 3);
+    touchProductUpdatedAt($pdo, $productId);
+
+    echo "⚠️ Товар найден, но цена отсутствует\n";
+    echo "✅ parsed_links.execution_status = 3\n";
+    echo "✅ parsed_products.updated_at обновлён (сдвиг в конец очереди)\n";
+
 } else {
-    // Сценарий C: Товар/цена не найдены после всех чанков
+    // Сценарий D: Товар вообще не найден после всех чанков
     updateLinkExecutionStatus($pdo, $linkId, 2);
     touchProductUpdatedAt($pdo, $productId);
 
-    echo "⚠️ Цена не найдена (статус: {$searchResult['status']})\n";
+    echo "⚠️ Товар не найден (статус: {$searchResult['status']})\n";
     echo "✅ parsed_links.execution_status = 2\n";
     echo "✅ parsed_products.updated_at обновлён (сдвиг в конец очереди)\n";
 }
