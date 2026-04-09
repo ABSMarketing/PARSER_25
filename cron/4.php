@@ -53,6 +53,9 @@ require_once __DIR__ . '/functions/provider_deepseek.php';
 // Функции очистки HTML, разбиения на чанки и поиска цены через DeepSeek
 require_once __DIR__ . '/functions/deepseek_price_search.php';
 
+// Функции извлечения цены из структурированных данных (JSON-LD, микроданные, OG)
+require_once __DIR__ . '/functions/extract_price_structured.php';
+
 // ========================================
 // НАСТРОЙКИ API
 // ========================================
@@ -111,8 +114,8 @@ echo "🔗 Ссылка для парсинга:\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
 if ($result['link_id'] === null) {
-    echo "⚠️ Все ссылки исчерпаны, цена не найдена → price = 0\n";
-    saveProductPrice($pdo, $productId, 0, null);
+    echo "⚠️ Все ссылки исчерпаны, цена не найдена → price_status = 4\n";
+    saveProductPrice($pdo, $productId, null, null, 4);
     exit(0);
 }
 
@@ -228,23 +231,25 @@ if ($searchResult['status'] === 'FOUND' && $searchResult['price'] > 0) {
     $finalUrl        = $linkUrl;
     $finalLinkStatus = 3;
 
-    saveProductPrice($pdo, $productId, $finalPrice, $finalUrl);
+    saveProductPrice($pdo, $productId, $finalPrice, $finalUrl, 1);
     updateLinkExecutionStatus($pdo, $linkId, $finalLinkStatus);
 
     echo "✅ parsed_products.price = " . number_format($finalPrice, 2, '.', '') . "\n";
+    echo "✅ parsed_products.price_status = 1 (цена найдена)\n";
     echo "✅ parsed_products.product_url = {$finalUrl}\n";
     echo "✅ parsed_links.execution_status = 3\n";
 
 } elseif ($searchResult['status'] === 'REQUEST') {
     // Сценарий B: Цена по запросу
-    $finalPrice      = 0;
+    $finalPrice      = null;
     $finalUrl        = $linkUrl;
     $finalLinkStatus = 3;
 
-    saveProductPrice($pdo, $productId, $finalPrice, $finalUrl);
+    saveProductPrice($pdo, $productId, $finalPrice, $finalUrl, 2);
     updateLinkExecutionStatus($pdo, $linkId, $finalLinkStatus);
 
-    echo "✅ parsed_products.price = 0 (цена по запросу)\n";
+    echo "✅ parsed_products.price = NULL (цена по запросу)\n";
+    echo "✅ parsed_products.price_status = 2 (по запросу)\n";
     echo "✅ parsed_products.product_url = {$finalUrl}\n";
     echo "✅ parsed_links.execution_status = 3\n";
 
@@ -286,11 +291,15 @@ echo "Товар:         {$productInfo}\n";
 echo "Ссылка:        {$linkUrl}\n";
 if ($finalPrice !== null) {
     echo "Цена:          " . number_format($finalPrice, 2, '.', ' ') . "\n";
+} elseif ($searchResult['status'] === 'REQUEST') {
+    echo "Цена:          по запросу\n";
 } else {
     echo "Цена:          не найдена\n";
 }
 echo "Чанков:        {$searchResult['chunks_processed']}/{$searchResult['chunks_total']}";
-if ($searchResult['status'] === 'FOUND' || $searchResult['status'] === 'REQUEST') {
+if ($searchResult['chunks_processed'] === 0) {
+    echo " (цена найдена в структурированных данных)";
+} elseif ($searchResult['status'] === 'FOUND' || $searchResult['status'] === 'REQUEST') {
     echo " (остановлено после нахождения)";
 }
 echo "\n";

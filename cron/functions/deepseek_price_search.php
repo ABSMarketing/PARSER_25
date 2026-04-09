@@ -16,7 +16,10 @@
 
 /**
  * Очищает HTML от мусора для уменьшения объёма перед отправкой в DeepSeek.
- * Удаляет: <script>, <style>, <!-- -->, <svg>, <noscript>, множественные пробелы.
+ * Удаляет: <script>, <style>, <!-- -->, <svg>, <noscript>,
+ *          <header>, <footer>, <nav>, <aside>, <form>, <iframe>,
+ *          <video>, <audio>, <canvas>, <map>,
+ *          блоки с шумовыми классами/id, множественные пробелы.
  *
  * @param  string $html Исходный HTML-код
  * @return string       Очищенный HTML
@@ -37,6 +40,39 @@ function cleanHtmlForPriceSearch(string $html): string
 
     // Удаляем <noscript>...</noscript>
     $html = preg_replace('/<noscript\b[^>]*>[\s\S]*?<\/noscript>/i', '', $html);
+
+    // Удаляем навигационные и служебные блоки
+    $html = preg_replace('/<header\b[^>]*>[\s\S]*?<\/header>/i', '', $html);
+    $html = preg_replace('/<footer\b[^>]*>[\s\S]*?<\/footer>/i', '', $html);
+    $html = preg_replace('/<nav\b[^>]*>[\s\S]*?<\/nav>/i', '', $html);
+    $html = preg_replace('/<aside\b[^>]*>[\s\S]*?<\/aside>/i', '', $html);
+
+    // Удаляем формы, медиа и интерактивные элементы
+    $html = preg_replace('/<form\b[^>]*>[\s\S]*?<\/form>/i', '', $html);
+    $html = preg_replace('/<iframe\b[^>]*>[\s\S]*?<\/iframe>/i', '', $html);
+    $html = preg_replace('/<video\b[^>]*>[\s\S]*?<\/video>/i', '', $html);
+    $html = preg_replace('/<audio\b[^>]*>[\s\S]*?<\/audio>/i', '', $html);
+    $html = preg_replace('/<canvas\b[^>]*>[\s\S]*?<\/canvas>/i', '', $html);
+    $html = preg_replace('/<map\b[^>]*>[\s\S]*?<\/map>/i', '', $html);
+
+    // Удаляем блоки с шумовыми классами/id (cookie, popup, modal и т.п.)
+    $noisePatterns = [
+        'cookie', 'popup', 'modal', 'breadcrumb', 'newsletter',
+        'subscribe', 'banner', 'social', 'share', 'widget',
+    ];
+    $noiseRegex = implode('|', $noisePatterns);
+    $html = preg_replace('/<div\b[^>]*(?:class|id)=["\'][^"\']*\b(' . $noiseRegex . ')\b[^"\']*["\'][^>]*>[\s\S]*?<\/div>/i', '', $html);
+
+    // Удаляем все HTML-тэги <img> (одиночные)
+    $html = preg_replace('/<img\b[^>]*\/?>/i', '', $html);
+
+    // Удаляем шумовые HTML-атрибуты для уменьшения объёма
+    $noiseAttrs = ['style', 'onclick', 'onload', 'onmouseover', 'srcset', 'sizes',
+                   'loading', 'decoding', 'fetchpriority', 'crossorigin', 'integrity',
+                   'nonce', 'referrerpolicy'];
+    foreach ($noiseAttrs as $attr) {
+        $html = preg_replace('/\s+' . $attr . '=["\'][^"\']*["\']/i', '', $html);
+    }
 
     // Схлопываем множественные пробелы / переводы строк в одинарные
     $html = preg_replace('/\s+/', ' ', $html);
@@ -104,9 +140,13 @@ function searchPriceInChunk(
 - Цена может быть в тэгах: <span>, <div>, <p>, <td>, атрибутах data-price и т.п.
 - Цена может быть в формате: "1 234.56", "1234,56", "$1,234.56", "1 234 руб." и т.п.
 - Если нашёл цену — верни её числовое значение (только цифры и точка как десятичный разделитель).
-- Если вместо цены указано "Цена по запросу", "Звоните", "По запросу", "Call for price" — верни "REQUEST".
+- Если цена указана как диапазон "от X до Y" — верни минимальную цену X.
+- Если цена указана как "от X руб." — верни X.
+- Если есть старая (зачёркнутая) и новая цена — верни НОВУЮ (актуальную) цену.
+- Если найдено несколько цен для товара — верни основную розничную цену (не оптовую, не старую).
+- Если вместо цены указано одно из: "Цена по запросу", "Звоните", "По запросу", "Call for price", "Уточняйте у менеджера", "Уточняйте стоимость", "Позвоните для уточнения", "По звонку", "Цена договорная", "Под заказ" — верни "REQUEST".
 - Если товар не найден в этом фрагменте — верни "NOT_FOUND".
-- Если товар найден, но цены нет — верни "NO_PRICE".
+- Если товар найден, но цены нет (пустое место, прочерк) — верни "NO_PRICE".
 
 Верни ТОЛЬКО JSON без комментариев, без пояснений, без markdown-разметки.
 Формат ответа:
@@ -225,7 +265,8 @@ PROMPT;
 
 /**
  * Основная функция-оркестратор поиска цены товара в HTML.
- * Очищает HTML → разбивает на чанки → последовательно отправляет в DeepSeek.
+ * Сначала пытается извлечь цену из структурированных данных (JSON-LD, микроданные, OG).
+ * Если не найдена — очищает HTML → разбивает на чанки → последовательно отправляет в DeepSeek.
  * Останавливается при нахождении цены (FOUND) или обнаружении "Цена по запросу" (REQUEST).
  *
  * @param  string $deepseekKey  API-ключ DeepSeek
@@ -237,7 +278,43 @@ PROMPT;
  */
 function searchPriceInHtml(string $deepseekKey, string $productInfo, string $html): array
 {
-    // Очистка HTML
+    // ── Шаг 0: Пытаемся извлечь цену из структурированных данных ──
+    echo "🏷️ Попытка извлечения цены из структурированных данных...\n";
+
+    $structuredResult = extractPriceFromStructuredData($html, $productInfo);
+
+    if ($structuredResult['found']) {
+        if ($structuredResult['is_request']) {
+            echo "📞 Структурированные данные: цена по запросу (источник: {$structuredResult['source']})\n";
+            return [
+                'success'          => true,
+                'status'           => 'REQUEST',
+                'price'            => null,
+                'currency'         => $structuredResult['currency'],
+                'product_name'     => $structuredResult['product_name'],
+                'chunks_processed' => 0,
+                'chunks_total'     => 0,
+            ];
+        }
+
+        if ($structuredResult['price'] !== null && $structuredResult['price'] > 0) {
+            echo "🎯 Цена из структурированных данных: " . number_format($structuredResult['price'], 2, '.', ' ')
+                . " {$structuredResult['currency']} (источник: {$structuredResult['source']})\n";
+            return [
+                'success'          => true,
+                'status'           => 'FOUND',
+                'price'            => $structuredResult['price'],
+                'currency'         => $structuredResult['currency'],
+                'product_name'     => $structuredResult['product_name'],
+                'chunks_processed' => 0,
+                'chunks_total'     => 0,
+            ];
+        }
+    }
+
+    echo "ℹ️ Структурированные данные не содержат цену, переход к DeepSeek...\n\n";
+
+    // ── Шаг 1: Очистка HTML ──
     $cleanedHtml = cleanHtmlForPriceSearch($html);
     $originalSize = mb_strlen($html);
     $cleanedSize  = mb_strlen($cleanedHtml);

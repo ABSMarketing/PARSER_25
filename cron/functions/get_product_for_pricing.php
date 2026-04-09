@@ -41,6 +41,7 @@ function getProductWithLink(PDO $pdo): ?array
             ON pl.`parent_id` = pp.`id`
            AND pl.`execution_status` = 1
         WHERE pp.`price` IS NULL
+          AND pp.`price_status` IS NULL
           AND pp.`status` = 1
         ORDER BY pp.`updated_at` ASC, pl.`priority` DESC
         LIMIT 1
@@ -53,28 +54,31 @@ function getProductWithLink(PDO $pdo): ?array
 }
 
 /**
- * Записывает цену и URL страницы с ценой в parsed_products.
+ * Записывает цену, статус цены и URL страницы с ценой в parsed_products.
  *
- * @param  PDO         $pdo        Объект PDO подключения
- * @param  int         $productId  ID товара
- * @param  float       $price      Цена товара
- * @param  string|null $productUrl URL страницы с ценой
+ * @param  PDO         $pdo         Объект PDO подключения
+ * @param  int         $productId   ID товара
+ * @param  float|null  $price       Цена товара (null если не найдена)
+ * @param  string|null $productUrl  URL страницы с ценой
+ * @param  int         $priceStatus Статус цены: 1=найдена, 2=по запросу, 3=нет цены, 4=не найден
  * @return void
  */
-function saveProductPrice(PDO $pdo, int $productId, float $price, ?string $productUrl): void
+function saveProductPrice(PDO $pdo, int $productId, ?float $price, ?string $productUrl, int $priceStatus = 1): void
 {
     $sql = "
         UPDATE `parsed_products`
         SET `price` = :price,
             `product_url` = :product_url,
+            `price_status` = :price_status,
             `updated_at` = NOW()
         WHERE `id` = :id
     ";
 
     $stmt = $pdo->prepare($sql);
-    $stmt->bindValue(':price',       $price,      PDO::PARAM_STR);
-    $stmt->bindValue(':product_url', $productUrl, PDO::PARAM_STR);
-    $stmt->bindValue(':id',          $productId,  PDO::PARAM_INT);
+    $stmt->bindValue(':price',        $price,       $price !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+    $stmt->bindValue(':product_url',  $productUrl,  $productUrl !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+    $stmt->bindValue(':price_status', $priceStatus, PDO::PARAM_INT);
+    $stmt->bindValue(':id',           $productId,   PDO::PARAM_INT);
     $stmt->execute();
 }
 
